@@ -31,7 +31,8 @@ check ((device_id = 1 and speed_wind is not null and bullet_dist is null) or
 create table if not exists batch(
 id int primary key,
 soldier_id int,
-parameter_id int
+parameter_id int,
+measured_at timestamptz default now()
 );
 
 insert into ranks(id, rank) values
@@ -70,10 +71,10 @@ insert into parameters(id, device_id, height, temp, atm_press, dir_wind, speed_w
 (5, 1, 300, 30.5, 800, 45, 10, NULL)
 on conflict (id) do nothing;
 
-insert into batch(id, soldier_id, parameter_id) values
-(1, 1, 1),
-(2, 2, 2),
-(3, 3, 3),
-(4, 4, 4),
-(5, 5, 5)
+insert into batch(id, soldier_id, parameter_id, measured_at) values
+(1, 1, 1, '2026-09-20 08:00:00+08'),
+(2, 2, 2, '2026-09-21 08:00:00+08'),
+(3, 3, 3, '2026-09-21 10:00:00+08'),
+(4, 4, 4, '2026-09-21 12:00:00+08'),
+(5, 5, 5, '2026-09-21 14:00:00+08')
 on conflict (id) do nothing;
