@@ -3,16 +3,26 @@ id int primary key,
 rank text
 );
 
+comment on table ranks is 'Справочник военных званий';
+comment on column ranks.rank is 'Название звания';
+
 create table if not exists devices(
 id int primary key,
 name text
 );
+
+comment on table devices is 'Справочник типов оборудования для измерений';
+comment on column devices.name is 'Название оборудования';
 
 create table if not exists soldiers(
 id int primary key,
 personal_id int,
 rank_id int
 );
+
+comment on table soldiers is 'Справочник военнослужащих';
+comment on column soldiers.personal_id is 'Личный номер военнослужащего';
+comment on column soldiers.rank_id is 'Звание военнослужащего из ranks';
 
 create table if not exists parameters(
 id int primary key,
@@ -28,12 +38,26 @@ check ((device_id = 1 and speed_wind is not null and bullet_dist is null) or
 (device_id = 2 and speed_wind is null and bullet_dist is not null))
 );
 
+comment on table parameters is 'Параметры метеоизмерения для расчёта';
+comment on column parameters.device_id is 'Тип оборудования для расчёта из devices';
+comment on column parameters.height is 'Высота метеопоста над уровнем моря, м';
+comment on column parameters.temp is 'Температура воздуха, (-58.0 … 58.0)';
+comment on column parameters.atm_press is 'Атмосферное давление, мм рт.ст. (500 … 900)';
+comment on column parameters.dir_wind is 'Направление ветра, деления угломера (0 … 59)';
+comment on column parameters.speed_wind is 'Скорость ветра, м/с (0 … 15). Только для ДМК';
+comment on column parameters.bullet_dist is 'Дальность сноса пуль, м (0 … 150). Только для ВР';
+
 create table if not exists batch(
 id int primary key,
 soldier_id int,
 parameter_id int,
 measured_at timestamptz default now()
 );
+
+comment on table batch is 'История измерений(кто, параметры и дата)';
+comment on column batch.soldier_id is 'Военнослужащий из soldiers';
+comment on column batch.parameter_id is 'Параметры из parameters';
+comment on column batch.measured_at is 'Дата и время измерения';
 
 insert into ranks(id, rank) values
 (1, 'рядовой'),
