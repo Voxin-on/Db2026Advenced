@@ -24,8 +24,7 @@ create table unit_meas (
 id int primary key,
 base_id int,
 name text,
-factor numeric,
-constraint fk_unit_meas_base_unit_meas foreign key (base_id) references base_unit_meas(id)
+factor numeric
 );
 
 comment on table unit_meas is 'Справочник всех единиц измерения';
@@ -65,13 +64,7 @@ id serial primary key,
 batch_id int,
 type_par_id int,
 unit_meas_id int,
-value numeric,
-constraint fk_parameters_new_batch
-foreign key (batch_id) references batch(id),
-constraint fk_parameters_new_type_par
-foreign key (type_par_id) references type_parameter(id),
-constraint fk_parameters_new_unit_meas
-foreign key (unit_meas_id) references unit_meas(id)
+value numeric
 );
 
 comment on table parameters_new is 'Параметры метоизмерения для расчёта';
@@ -108,19 +101,6 @@ alter table batch drop column parameter_id;
 
 -- переименование таблицы в параметра после переноса
 alter table parameters_new rename to parameters;
-
--- связи для прошлых таблиц
-alter table soldiers
-add constraint fk_soldier_ranks
-foreign key (rank_id) references ranks(id);
-
-alter table batch
-add constraint fk_batch_soldier
-foreign key (soldier_id) references soldiers(id);
-
-alter table batch
-add constraint fk_batch_devices
-foreign key (device_id) references devices(id);
 
 -- итоговый запрос
 select batch.measured_at, batch.id, soldiers.personal_id, 
