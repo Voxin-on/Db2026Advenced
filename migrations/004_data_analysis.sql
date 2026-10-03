@@ -4,12 +4,14 @@ select t1.cnt as meas_count, string_agg(t1.soldier_id::text, ' ') as soldiers fr
 	left join batch b on s.id = b.soldier_id
 	group by s.id
 )t1
-group by t1.cnt;
+group by t1.cnt
+order by t1.cnt;
 
 -- У нас нет пустых пачек измерения?
-select b.id as batch_id from batch b
+select b.soldier_id, string_agg(b.id::text, ' ') as empty_batches from batch b
 left join parameters p on b.id = p.batch_id
-where p.id is null; 
+where p.id is null
+group by b.soldier_id; 
 
 -- Каждая пачка измерений содержит полное количеситво параметров (5 шт)?
 select b.id as batch_id, count(distinct p.type_par_id) as type_param_count from batch b
