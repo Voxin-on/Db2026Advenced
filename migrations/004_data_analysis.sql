@@ -1,7 +1,8 @@
 -- Каждый пользователь имеет одинаковое количество измерений?
-select t1.cnt as meas_count, string_agg(t1.soldier_id::text, ' ') as soldiers from (
-	select s.id as soldier_id, count(b.id) as cnt from soldiers s
+select t1.cnt as meas_count, string_agg(t1.soldier_id::text, ' ' order by t1.soldier_id) as soldiers from (
+	select s.id as soldier_id, count(p.id) as cnt from soldiers s
 	left join batch b on s.id = b.soldier_id
+	left join parameters p on p.batch_id = b.id 
 	group by s.id
 )t1
 group by t1.cnt
@@ -14,10 +15,10 @@ where p.id is null
 group by b.soldier_id; 
 
 -- Каждая пачка измерений содержит полное количеситво параметров (5 шт)?
-select b.id as batch_id, count(distinct p.type_par_id) as type_param_count from batch b
+select b.id as batch_id, coalesce(count(distinct p.type_par_id), 0) as type_param_count from batch b
 left join parameters p on b.id = p.batch_id
 group by b.id
-having count(distinct p.type_par_id) <> 5;
+having coalesce(count(distinct p.type_par_id), 0) <> 5;
 
 -- Все значения который сформировал корректны и в рамках нужного нам диаппазонов?
 select p.id, p.batch_id, p.type_par_id, um.factor, p.value * um.factor as value_base
