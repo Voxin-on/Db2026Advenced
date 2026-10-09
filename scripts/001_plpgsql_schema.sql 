@@ -1,0 +1,503 @@
+do 
+$$
+begin
+
+drop table if exists parameters cascade;
+drop table if exists batch cascade;
+drop table if exists soldiers cascade;
+drop table if exists ranks cascade;
+drop table if exists devices cascade;
+drop table if exists unit_meas cascade;
+drop table if exists base_unit_meas cascade;
+drop table if exists type_parameter cascade;
+
+drop table if exists temp_correction;
+
+drop sequence if exists seq_soldiers cascade;
+drop sequence if exists seq_base_unit_meas cascade;
+drop sequence if exists seq_batch cascade;
+drop sequence if exists seq_devices cascade;
+drop sequence if exists seq_parameters cascade;
+drop sequence if exists seq_ranks cascade;
+drop sequence if exists seq_type_parameter cascade;
+drop sequence if exists seq_unit_meas cascade;
+
+drop sequence if exists seq_temp_correction;
+
+create sequence seq_soldiers;
+create sequence seq_base_unit_meas;
+create sequence seq_batch;
+create sequence seq_devices;
+create sequence seq_parameters;
+create sequence seq_ranks;
+create sequence seq_type_parameter;
+create sequence seq_unit_meas;
+
+create sequence seq_temp_correction;
+
+-- звания
+create table ranks(
+id int primary key default nextval('seq_ranks'),
+rank text
+);
+
+comment on table ranks is 'Справочник военных званий';
+comment on column ranks.rank is 'Название звания';
+
+-- тип устройств
+create table devices(
+id int primary key default nextval('seq_devices'),
+name text
+);
+
+comment on table devices is 'Справочник типов оборудования для измерений';
+comment on column devices.name is 'Название оборудования';
+
+-- солдаты
+create table soldiers(
+id int primary key default nextval('seq_soldiers'),
+personal_id int,
+rank_id int
+);
+
+comment on table soldiers is 'Справочник военнослужащих';
+comment on column soldiers.personal_id is 'Личный номер военнослужащего';
+comment on column soldiers.rank_id is 'Звание военнослужащего из ranks';
+
+-- базовые единицы
+create table base_unit_meas (
+id int primary key default nextval('seq_base_unit_meas'),
+name text
+);
+comment on table base_unit_meas is 'Справочник базовых единиц измерения';
+comment on column base_unit_meas.id is 'Уникальный код ед. измерения';
+comment on column base_unit_meas.name is 'Единица измерения';
+
+-- все единицы измерения
+create table unit_meas (
+id int primary key default nextval('seq_unit_meas'),
+base_id int,
+name text,
+factor numeric
+);
+
+comment on table unit_meas is 'Справочник всех единиц измерения';
+comment on column unit_meas.id is 'Уникальный код ед. измерения';
+comment on column unit_meas.name is 'Единица измерения';
+comment on column unit_meas.base_id is 'Уникальный код базовой единицы';
+comment on column unit_meas.factor is 'Коэфицент от базовой единицы';
+
+-- тип параметра
+create table type_parameter (
+id int primary key default nextval('seq_type_parameter'),
+name text
+);
+
+comment on table type_parameter is 'Справочник типов параметров для измерения';
+comment on column type_parameter.id is 'Уникальный код типа параметра';
+comment on column type_parameter.name is 'Тип параметра';
+
+-- параметры
+create table parameters (
+id int primary key default nextval('seq_parameters'),
+batch_id int,
+type_par_id int,
+unit_meas_id int,
+value numeric
+);
+
+comment on table parameters is 'Параметры метоизмерения для расчёта';
+comment on column parameters.id is 'Уникальный код параметра';
+comment on column parameters.batch_id is 'Уникальный код пачка';
+comment on column parameters.type_par_id is 'Уникальный код типа параметра';
+comment on column parameters.unit_meas_id is 'Уникальный код ед. измерения';
+comment on column parameters.value is 'Значение параметра';
+
+-- пачки
+create table batch(
+id int primary key default nextval('seq_batch'),
+soldier_id int,
+device_id int,
+measured_at timestamptz default now()
+);
+
+comment on table batch is 'История измерений(кто, параметры и дата)';
+comment on column batch.soldier_id is 'Военнослужащий из soldiers';
+comment on column batch.device_id is 'Уникальный код устройства';
+comment on column batch.measured_at is 'Дата и время измерения';
+
+
+-- виртуальная поправка (таблица 1 см. _Docs/Artillery/TechnicalTask.md)
+create table temp_correction (
+id int primary key default nextval('seq_temp_correction'),
+t0 numeric not null,
+delta_tv numeric
+);
+
+end
+$$;
+
+do
+$$
+begin
+
+-- =========================================================
+-- 1. ranks — военные звания (сухопутные войска)
+-- =========================================================
+insert into ranks(rank) values
+    ('рядовой'),
+    ('ефрейтор'),
+    ('младший сержант'),
+    ('сержант'),
+    ('старший сержант'),
+    ('старшина'),
+    ('прапорщик'),
+    ('старший прапорщик'),
+    ('младший лейтенант'),
+    ('лейтенант'),
+    ('старший лейтенант'),
+    ('капитан'),
+    ('майор'),
+    ('подполковник'),
+    ('полковник');
+
+-- =========================================================
+-- 2. devices — типы устройств (ДМК и ВР)
+-- =========================================================
+insert into devices(name) values
+    ('ДМК'),
+    ('ВР');
+
+-- =========================================================
+-- 3. soldiers — 6 военнослужащих, personal_id из 8 цифр
+-- =========================================================
+insert into soldiers(personal_id, rank_id) values
+    (10000001, 1),
+    (10000002, 2),
+    (10000003, 3),
+    (10000004, 4),
+    (10000005, 5),
+    (10000006, 6);
+
+-- =========================================================
+-- 4. base_unit_meas — базовые единицы измерения
+-- =========================================================
+insert into base_unit_meas(name) values
+    ('метр'),
+    ('градус Цельсия'),
+    ('миллиметр ртутного столба'),
+    ('большое деление угломера'),
+    ('метр в секунду');
+
+-- =========================================================
+-- 5. unit_meas — все единицы измерения (с коэффициентом к базовой)
+-- =========================================================
+insert into unit_meas(base_id, name, factor) values
+    (1, 'метр над уровнем моря', 1),
+    (2, 'градус Цельсия',        1),
+    (3, 'мм рт. ст.',            1),
+    (4, 'большое деление угломера', 1),
+    (5, 'м/с',                   1);
+
+-- =========================================================
+-- 6. type_parameter — типы параметров
+-- =========================================================
+insert into type_parameter(name) values
+    ('Высота метеопоста'),
+    ('Температура'),
+    ('Давление'),
+    ('Направление ветра'),
+    ('Скорость ветра'),
+    ('Дальность сноса пуль');
+
+-- =========================================================
+-- 7. batch — 6 солдат × 4 пачки = 24 записи
+--    device_id: 1 = ДМК, 2 = ВР
+--    measured_at уникальны
+-- =========================================================
+insert into batch(soldier_id, device_id, measured_at) values
+    -- солдат 1 (ДМК)
+    (1, 1, '2025-01-01 08:00:00+03'),
+    (1, 1, '2025-01-01 09:00:00+03'),
+    (1, 1, '2025-01-01 10:00:00+03'),
+    (1, 1, '2025-01-01 11:00:00+03'),
+    -- солдат 2 (ВР)
+    (2, 2, '2025-01-02 08:00:00+03'),
+    (2, 2, '2025-01-02 09:00:00+03'),
+    (2, 2, '2025-01-02 10:00:00+03'),
+    (2, 2, '2025-01-02 11:00:00+03'),
+    -- солдат 3 (ДМК)
+    (3, 1, '2025-01-03 08:00:00+03'),
+    (3, 1, '2025-01-03 09:00:00+03'),
+    (3, 1, '2025-01-03 10:00:00+03'),
+    (3, 1, '2025-01-03 11:00:00+03'),
+    -- солдат 4 (ВР)
+    (4, 2, '2025-01-04 08:00:00+03'),
+    (4, 2, '2025-01-04 09:00:00+03'),
+    (4, 2, '2025-01-04 10:00:00+03'),
+    (4, 2, '2025-01-04 11:00:00+03'),
+    -- солдат 5 (ДМК)
+    (5, 1, '2025-01-05 08:00:00+03'),
+    (5, 1, '2025-01-05 09:00:00+03'),
+    (5, 1, '2025-01-05 10:00:00+03'),
+    (5, 1, '2025-01-05 11:00:00+03'),
+    -- солдат 6 (ВР)
+    (6, 2, '2025-01-06 08:00:00+03'),
+    (6, 2, '2025-01-06 09:00:00+03'),
+    (6, 2, '2025-01-06 10:00:00+03'),
+    (6, 2, '2025-01-06 11:00:00+03');
+
+-- =========================================================
+-- 8. parameters — параметры измерений
+--    type_par_id:
+--      1 = Высота метеопоста   (unit 1, метр над уровнем моря, целые, могут быть отриц.)
+--      2 = Температура         (unit 2, °C, дробные с 1 знаком, -58..58)
+--      3 = Давление            (unit 3, мм рт.ст., целые >0, 500..900)
+--      4 = Направление ветра   (unit 4, БДУ, 2 разряда, 0..59)
+--      5 = Скорость ветра      (unit 5, м/с, целые >=0, 0..15) — для ДМК
+--      6 = Дальность сноса пуль(unit 1, м, целые >=0, 0..150) — для ВР
+-- =========================================================
+
+-- ---- Пачки с ДМК (device_id = 1): параметры 1,2,3,4,5 ----
+-- batch 1..4 (солдат 1), 9..12 (солдат 3), 17..20 (солдат 5)
+
+-- batch 1
+insert into parameters(batch_id, type_par_id, unit_meas_id, value) values
+    (1, 1, 1, 150),
+    (1, 2, 2, 12.5),
+    (1, 3, 3, 745),
+    (1, 4, 4, 12),
+    (1, 5, 5, 5);
+-- batch 2
+insert into parameters(batch_id, type_par_id, unit_meas_id, value) values
+    (2, 1, 1, 151),
+    (2, 2, 2, -3.4),
+    (2, 3, 3, 746),
+    (2, 4, 4, 23),
+    (2, 5, 5, 6);
+-- batch 3
+insert into parameters(batch_id, type_par_id, unit_meas_id, value) values
+    (3, 1, 1, 152),
+    (3, 2, 2, 0.0),
+    (3, 3, 3, 747),
+    (3, 4, 4, 34),
+    (3, 5, 5, 7);
+-- batch 4
+insert into parameters(batch_id, type_par_id, unit_meas_id, value) values
+    (4, 1, 1, 153),
+    (4, 2, 2, 25.7),
+    (4, 3, 3, 748),
+    (4, 4, 4, 45),
+    (4, 5, 5, 8);
+
+-- batch 9
+insert into parameters(batch_id, type_par_id, unit_meas_id, value) values
+    (9, 1, 1, 200),
+    (9, 2, 2, -15.2),
+    (9, 3, 3, 760),
+    (9, 4, 4, 5),
+    (9, 5, 5, 0);
+-- batch 10
+insert into parameters(batch_id, type_par_id, unit_meas_id, value) values
+    (10, 1, 1, 201),
+    (10, 2, 2, -58.0),
+    (10, 3, 3, 761),
+    (10, 4, 4, 16),
+    (10, 5, 5, 1);
+-- batch 11
+insert into parameters(batch_id, type_par_id, unit_meas_id, value) values
+    (11, 1, 1, 202),
+    (11, 2, 2, 58.0),
+    (11, 3, 3, 762),
+    (11, 4, 4, 27),
+    (11, 5, 5, 2);
+-- batch 12
+insert into parameters(batch_id, type_par_id, unit_meas_id, value) values
+    (12, 1, 1, 203),
+    (12, 2, 2, 10.1),
+    (12, 3, 3, 763),
+    (12, 4, 4, 38),
+    (12, 5, 5, 3);
+
+-- batch 17
+insert into parameters(batch_id, type_par_id, unit_meas_id, value) values
+    (17, 1, 1, -50),
+    (17, 2, 2, 5.5),
+    (17, 3, 3, 500),
+    (17, 4, 4, 0),
+    (17, 5, 5, 15);
+-- batch 18
+insert into parameters(batch_id, type_par_id, unit_meas_id, value) values
+    (18, 1, 1, 0),
+    (18, 2, 2, -20.3),
+    (18, 3, 3, 900),
+    (18, 4, 4, 59),
+    (18, 5, 5, 14);
+-- batch 19
+insert into parameters(batch_id, type_par_id, unit_meas_id, value) values
+    (19, 1, 1, 300),
+    (19, 2, 2, 30.0),
+    (19, 3, 3, 800),
+    (19, 4, 4, 11),
+    (19, 5, 5, 13);
+-- batch 20
+insert into parameters(batch_id, type_par_id, unit_meas_id, value) values
+    (20, 1, 1, 301),
+    (20, 2, 2, -40.7),
+    (20, 3, 3, 700),
+    (20, 4, 4, 22),
+    (20, 5, 5, 12);
+
+-- ---- Пачки с ВР (device_id = 2): параметры 1,2,3,4,6 ----
+-- batch 5..8 (солдат 2), 13..16 (солдат 4), 21..24 (солдат 6)
+
+-- batch 5
+insert into parameters(batch_id, type_par_id, unit_meas_id, value) values
+    (5, 1, 1, 100),
+    (5, 2, 2, 15.5),
+    (5, 3, 3, 750),
+    (5, 4, 4, 10),
+    (5, 6, 1, 50);
+-- batch 6
+insert into parameters(batch_id, type_par_id, unit_meas_id, value) values
+    (6, 1, 1, 101),
+    (6, 2, 2, -5.5),
+    (6, 3, 3, 751),
+    (6, 4, 4, 21),
+    (6, 6, 1, 60);
+-- batch 7
+insert into parameters(batch_id, type_par_id, unit_meas_id, value) values
+    (7, 1, 1, 102),
+    (7, 2, 2, 20.0),
+    (7, 3, 3, 752),
+    (7, 4, 4, 32),
+    (7, 6, 1, 70);
+-- batch 8
+insert into parameters(batch_id, type_par_id, unit_meas_id, value) values
+    (8, 1, 1, 103),
+    (8, 2, 2, -30.1),
+    (8, 3, 3, 753),
+    (8, 4, 4, 43),
+    (8, 6, 1, 80);
+
+-- batch 13
+insert into parameters(batch_id, type_par_id, unit_meas_id, value) values
+    (13, 1, 1, 250),
+    (13, 2, 2, 35.4),
+    (13, 3, 3, 770),
+    (13, 4, 4, 7),
+    (13, 6, 1, 0);
+-- batch 14
+insert into parameters(batch_id, type_par_id, unit_meas_id, value) values
+    (14, 1, 1, 251),
+    (14, 2, 2, -45.6),
+    (14, 3, 3, 771),
+    (14, 4, 4, 18),
+    (14, 6, 1, 150);
+-- batch 15
+insert into parameters(batch_id, type_par_id, unit_meas_id, value) values
+    (15, 1, 1, 252),
+    (15, 2, 2, 57.9),
+    (15, 3, 3, 772),
+    (15, 4, 4, 29),
+    (15, 6, 1, 140);
+-- batch 16
+insert into parameters(batch_id, type_par_id, unit_meas_id, value) values
+    (16, 1, 1, 253),
+    (16, 2, 2, -57.9),
+    (16, 3, 3, 773),
+    (16, 4, 4, 40),
+    (16, 6, 1, 130);
+
+-- batch 21
+insert into parameters(batch_id, type_par_id, unit_meas_id, value) values
+    (21, 1, 1, 400),
+    (21, 2, 2, 1.1),
+    (21, 3, 3, 600),
+    (21, 4, 4, 3),
+    (21, 6, 1, 120);
+-- batch 22
+insert into parameters(batch_id, type_par_id, unit_meas_id, value) values
+    (22, 1, 1, 401),
+    (22, 2, 2, -1.1),
+    (22, 3, 3, 601),
+    (22, 4, 4, 14),
+    (22, 6, 1, 110);
+-- batch 23
+insert into parameters(batch_id, type_par_id, unit_meas_id, value) values
+    (23, 1, 1, 402),
+    (23, 2, 2, 44.4),
+    (23, 3, 3, 602),
+    (23, 4, 4, 25),
+    (23, 6, 1, 100);
+-- batch 24
+insert into parameters(batch_id, type_par_id, unit_meas_id, value) values
+    (24, 1, 1, 403),
+    (24, 2, 2, -44.4),
+    (24, 3, 3, 603),
+    (24, 4, 4, 36),
+    (24, 6, 1, 90);
+
+-- виртуальная поправка 
+insert into temp_correction(t0, delta_tv) values
+(0,  0.5),
+(5,  0.5),
+(10, 1),
+(15, 1),
+(20, 1.5),
+(25, 2),
+(30, 3.5),
+(40, 4.5);
+
+end 
+$$;
+
+do
+$$
+begin
+
+alter table ranks
+alter column rank set not null;
+
+alter table devices
+alter column name set not null;
+
+alter table soldiers
+alter column personal_id set not null,
+alter column rank_id set not null,
+add constraint fk_soldiers_ranks foreign key (rank_id) references ranks(id);
+
+alter table base_unit_meas
+alter column name set not null;
+
+alter table unit_meas
+alter column name set not null,
+alter column base_id set not null,
+alter column factor set not null,
+add constraint fk_unit_meas_base_unit_meas foreign key (base_id) references base_unit_meas(id);
+
+alter table type_parameter
+alter column name set not null;
+
+alter table parameters
+alter column type_par_id set not null,
+alter column batch_id set not null,
+alter column unit_meas_id set not null,
+alter column value set not null,
+add constraint fk_parameter_type_parameter foreign key (type_par_id) references type_parameter(id),
+add constraint fk_parameter_batch_id foreign key (batch_id) references batch(id),
+add constraint fk_parameter_unit_meas foreign key (unit_meas_id) references unit_meas(id);
+
+alter table batch
+alter column soldier_id set not null,
+alter column device_id set not null,
+alter column measured_at set not null,
+add constraint fk_batch_soldiers foreign key (soldier_id) references soldiers(id),
+add constraint fk_batch_devices foreign key (device_id) references devices(id);
+
+alter table temp_correction
+alter column t0 set not null,
+alter column delta_tv set not null;
+
+end
+$$;
