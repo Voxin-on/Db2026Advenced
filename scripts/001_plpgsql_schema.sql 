@@ -134,12 +134,12 @@ t0 numeric not null,
 delta_tv numeric
 );
 
-end
-$$;
+comment on table temp_correction is 'Коректировка температуры';
+comment on column temp_correction.id is 'Уникальный код поправки';
+comment on column temp_correction.t0 is 'Измеренная температура';
+comment on column temp_correction.delta_tv is 'Виртуальная поправка';
 
-do
-$$
-begin
+commit;
 
 -- =========================================================
 -- 1. ranks — военные звания (сухопутные войска)
@@ -449,12 +449,7 @@ insert into temp_correction(t0, delta_tv) values
 (30, 3.5),
 (40, 4.5);
 
-end 
-$$;
-
-do
-$$
-begin
+commit;
 
 alter table ranks
 alter column rank set not null;
@@ -498,6 +493,8 @@ add constraint fk_batch_devices foreign key (device_id) references devices(id);
 alter table temp_correction
 alter column t0 set not null,
 alter column delta_tv set not null;
+
+commit;
 
 end
 $$;
