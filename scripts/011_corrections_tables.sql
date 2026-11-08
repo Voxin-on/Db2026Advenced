@@ -254,6 +254,17 @@ begin
         foreign key (type_id) references calc_correction_types(id),
         add constraint uq_calc_correction_height_type
         unique (height_id, type_id);
+
+        -- коды таблиц корректировок
+        alter table calc_correction_types add column code text;
+        update calc_correction_types set code = 'temp_base' where id = 1;
+        update calc_correction_types set code = 'speed_base' where id = 2;
+        update calc_correction_types set code = 'dir_base' where id = 3;
+        update calc_correction_types set code = 'speed' where id in (4, 6);
+        update calc_correction_types set code = 'direction' where id in (5, 7);
+        update calc_correction_types set code = 'temp_positive' where id = 8;
+        update calc_correction_types set code = 'temp_negative' where id = 9;
+
         end;
 	
 end $$;
