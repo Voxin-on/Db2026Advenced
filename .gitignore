@@ -1,3 +1,5 @@
-.env
-.vscode/
-_Infra/pgadmin/
+_Infra/pgadmin
+_Infra/mssql-data
+_Infra/.env
+_Infra/backup
+_Infra/postgres-data
