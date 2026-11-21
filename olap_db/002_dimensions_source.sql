@@ -93,38 +93,32 @@ from bm_Companies c;
 
 
 -- Сотрудники
-select p.personid, p.lastname, p.firstname, p.middlename, p.securityaccess as role_id,
-       r.description as role_name, p.[percent], p.deleteflag
+select p.personid, p.lastname, p.firstname, p.middlename, p.[percent]
 from personnel p
-left join securityaccess r on r.securityaccessid = p.securityaccess
 order by p.personid;
 
-select 'insert into dim_personnel(external_id, lastname, firstname, middlename, role_id, role_name, percent, deleteflag) values ('
+select 'insert into dim_personnel(external_id, lastname, firstname, middlename, percent) values ('
     + cast(p.personid as varchar(max)) + ', '''
     + replace(coalesce(p.lastname, ''), '''', '''''') + ''', '''
     + replace(coalesce(p.firstname, ''), '''', '''''') + ''', '''
     + replace(coalesce(p.middlename, ''), '''', '''''') + ''', '
-    + coalesce(cast(p.securityaccess as varchar(max)), 'null') + ', '
-    + coalesce('''' + replace(r.description, '''', '''''') + '''', 'null') + ', '
-    + coalesce(cast(p.[percent] as varchar(max)), 'null') + ', '
-    + coalesce(cast(p.deleteflag as varchar(max)), 'null') + ');'
+    + coalesce(cast(p.[percent] as varchar(max)), 'null') + ');'
     as [sql]
 from personnel p
-left join securityaccess r on r.securityaccessid = p.securityaccess
 order by p.personid;
 
 
--- Типы документов
-select ID, [Description]
-from bm_JournalTypeDocuments
-order by ID;
+-- Роли
+select securityaccessid, [description]
+from securityaccess
+order by securityaccessid;
 
-select 'insert into dim_document_types(external_id, name) values ('
-    + cast(ID as varchar(max)) + ', '''
-    + replace([Description], '''', '''''') + ''');'
+select 'insert into dim_roles(external_id, name) values ('
+    + cast(securityaccessid as varchar(max)) + ', '''
+    + replace([description], '''', '''''') + ''');'
     as [sql]
-from bm_JournalTypeDocuments
-order by ID;
+from securityaccess
+order by securityaccessid;
 
 
 -- Виды складских операций

@@ -118,23 +118,20 @@ create table dim_personnel
     lastname text,
     firstname text,
     middlename text,
-    role_id bigint,
-    role_name text,
     percent float,
-    deleteflag smallint,
     date_add timestamp default now()
 );
 
 
--- Типы документов
-drop table if exists dim_document_types;
-drop sequence if exists seq_dim_document_types;
+-- Роли
+drop table if exists dim_roles;
+drop sequence if exists seq_dim_roles;
 
-create sequence seq_dim_document_types;
+create sequence seq_dim_roles;
 
-create table dim_document_types
+create table dim_roles
 (
-    id bigint primary key default nextval('seq_dim_document_types'),
+    id bigint primary key default nextval('seq_dim_roles'),
     external_id bigint,
     name text,
     date_add timestamp default now()
